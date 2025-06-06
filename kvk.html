@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Khải cứu Khanh - Flappy Style</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background-color: #dff9fb;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      overflow: hidden;
+    }
+    #game {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    #player {
+      width: 50px;
+      height: 50px;
+      background: #3498db;
+      border-radius: 50%;
+      position: absolute;
+      left: 60px;
+      top: 200px;
+      color: white;
+      line-height: 50px;
+      font-weight: bold;
+      z-index: 10;
+    }
+    .pipe {
+      width: 60px;
+      background: #2ecc71;
+      position: absolute;
+      right: 0;
+    }
+    .pipe.top {
+      top: 0;
+      border-bottom: 10px solid #27ae60;
+    }
+    .pipe.bottom {
+      bottom: 0;
+      border-top: 10px solid #27ae60;
+    }
+    #story, #end {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: rgba(255,255,255,0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+    }
+    .btn {
+      margin-top: 20px;
+      padding: 12px 24px;
+      font-size: 20px;
+      background-color: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 24px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div id="game">
+    <div id="player">Khải</div>
+    <div id="story">
+      <h1>Khải và Khanh</h1>
+      <p>Một ngày nọ, Khanh bị bắt cóc...</p>
+      <p>Hãy giúp Khải bay qua các chướng ngại vật để giải cứu Khanh!</p>
+      <button class="btn" onclick="startGame()">Bắt đầu</button>
+    </div>
+    <div id="end" style="display:none">
+      <h2>Khải đã giải cứu được Khanh! 💖</h2>
+      <p>Điểm số của bạn: <span id="finalScore">0</span></p>
+      <button class="btn" onclick="location.reload()">Chơi lại</button>
+    </div>
+    <div id="score">Điểm: 0</div>
+  </div>
+
+  <audio id="bgMusic" loop autoplay>
+    <source src="https://cdn.pixabay.com/download/audio/2022/03/28/audio_5c5a5230b3.mp3?filename=romantic-ambient-7331.mp3" type="audio/mpeg">
+  </audio>
+
+  <script>
+    const player = document.getElementById('player');
+    const game = document.getElementById('game');
+    const story = document.getElementById('story');
+    const end = document.getElementById('end');
+    const finalScore = document.getElementById('finalScore');
+    const scoreDisplay = document.getElementById('score');
+    const bgMusic = document.getElementById('bgMusic');
+
+    let gravity = 2;
+    let velocity = 0;
+    let jumpPower = -25;
+    let pipes = [];
+    let score = 0;
+    let isGameOver = false;
+    let gameLoopInterval;
+
+    function startGame() {
+      story.style.display = 'none';
+      bgMusic.play();
+      document.addEventListener('keydown', flap);
+      document.addEventListener('touchstart', flap);
+      gameLoopInterval = setInterval(gameLoop, 20);
+      setInterval(createPipe, 2000);
+    }
+
+    function flap() {
+      velocity = jumpPower;
+    }
+
+    function createPipe() {
+      let gap = 320; // 🔥 Lỗ cực to
+      let pipeTopHeight = Math.floor(Math.random() * 150) + 100;
+      let pipeBottomHeight = window.innerHeight - pipeTopHeight - gap;
+
+      let top = document.createElement('div');
+      top.classList.add('pipe', 'top');
+      top.style.height = pipeTopHeight + 'px';
+      top.style.right = '0px';
+
+      let bottom = document.createElement('div');
+      bottom.classList.add('pipe', 'bottom');
+      bottom.style.height = pipeBottomHeight + 'px';
+      bottom.style.right = '0px';
+
+      game.appendChild(top);
+      game.appendChild(bottom);
+
+      pipes.push({ top, bottom, passed: false });
+    }
+
+    function gameLoop() {
+      velocity += gravity;
+      let topVal = parseInt(player.style.top || '200');
+      topVal += velocity;
+      if (topVal < 0) topVal = 0;
+      if (topVal + 50 > window.innerHeight) {
+        gameOver();
+        return;
+      }
+      player.style.top = topVal + 'px';
+
+      for (let i = pipes.length - 1; i >= 0; i--) {
+        let p = pipes[i];
+        let rightTop = parseInt(p.top.style.right || '0');
+        let newRight = rightTop + 5;
+        p.top.style.right = newRight + 'px';
+        p.bottom.style.right = newRight + 'px';
+
+        let pipeX = window.innerWidth - newRight - 60;
+
+        if (!p.passed && pipeX + 60 < 60) {
+          score++;
+          scoreDisplay.innerText = 'Điểm: ' + score;
+          p.passed = true;
+        }
+
+        let playerTop = parseInt(player.style.top);
+        if (
+          pipeX < 110 &&
+          pipeX + 60 > 60 &&
+          (playerTop < parseInt(p.top.style.height) || playerTop + 50 > window.innerHeight - parseInt(p.bottom.style.height))
+        ) {
+          gameOver();
+        }
+
+        if (pipeX < -60) {
+          game.removeChild(p.top);
+          game.removeChild(p.bottom);
+          pipes.splice(i, 1);
+        }
+      }
+    }
+
+    function gameOver() {
+      if (isGameOver) return;
+      isGameOver = true;
+      clearInterval(gameLoopInterval);
+      document.removeEventListener('keydown', flap);
+      document.removeEventListener('touchstart', flap);
+      finalScore.innerText = score;
+      end.style.display = 'flex';
+    }
+  </script>
+</body>
+</html>
